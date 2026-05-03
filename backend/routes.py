@@ -10,6 +10,7 @@ def register():
     email = data.get('email')
     password = data.get('password')
     role = data.get('role')
+    name = data.get('name')
     
     if not email or not password or not role:
         return jsonify({"error": "Missing required fields"}), 400
@@ -20,9 +21,9 @@ def register():
     hashed_password = generate_password_hash(password)
     
     if role == 'applicant':
-        new_user = Applicant(email=email, password_hash=hashed_password, role=role)
+        new_user = Applicant(email=email, name=name, password_hash=hashed_password, role=role)
     elif role == 'recruiter':
-        new_user = Recruiter(email=email, password_hash=hashed_password, role=role)
+        new_user = Recruiter(email=email, name=name, password_hash=hashed_password, role=role)
     else:
         return jsonify({"error": "Invalid role"}), 400
         

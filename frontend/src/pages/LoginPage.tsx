@@ -19,7 +19,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     try {
-      const response = await axios.post("http://localhost:5000/api/auth/login", {
+      const response = await axios.post("http://127.0.0.1:5000/api/auth/login", {
         email,
         password
       });
@@ -38,7 +38,9 @@ export default function LoginPage() {
         navigate("/recruiter/dashboard");
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || "Login failed");
+      console.error("Login error:", err);
+      const message = err.response?.data?.error || err.message || "Login failed. Please check if the backend is running.";
+      setError(message);
     }
   };
 

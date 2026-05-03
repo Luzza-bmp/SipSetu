@@ -22,7 +22,8 @@ export default function RegisterPage() {
     e.preventDefault();
     setError("");
     try {
-      const response = await axios.post("http://localhost:5000/api/auth/register", {
+      const response = await axios.post("http://127.0.0.1:5000/api/auth/register", {
+        name,
         email,
         password,
         role
@@ -42,7 +43,9 @@ export default function RegisterPage() {
         navigate("/recruiter/dashboard");
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || "Registration failed");
+      console.error("Registration error:", err);
+      const message = err.response?.data?.error || err.message || "Registration failed. Please check if the backend is running.";
+      setError(message);
     }
   };
 

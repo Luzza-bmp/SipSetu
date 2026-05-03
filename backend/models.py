@@ -20,6 +20,7 @@ class User(db.Model):
     __tablename__ = 'users'
     user_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = db.Column(db.String(255), unique=True, nullable=False)
+    name = db.Column(db.String(255), nullable=True) # Added name field
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False) # 'applicant' or 'recruiter'
     
