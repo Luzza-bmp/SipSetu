@@ -104,3 +104,39 @@ def resumes():
     db.session.commit()
     
     return jsonify({"message": "Resume uploaded successfully"}), 201
+
+@api.route('/profile/<user_id>', methods=['GET', 'PUT'])
+def profile(user_id):
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+        
+    if request.method == 'GET':
+        result = {
+            "user_id": user.user_id,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role,
+            "phone": user.phone,
+            "location": user.location
+        }
+        if user.role == 'recruiter':
+            result.update({
+                "company": user.company,
+                "job_title": user.job_title
+            })
+        return jsonify(result), 200
+        
+    elif request.method == 'PUT':
+        data = request.get_json()
+        user.name = data.get('name', user.name)
+        user.email = data.get('email', user.email)
+        user.phone = data.get('phone', user.phone)
+        user.location = data.get('location', user.location)
+        
+        if user.role == 'recruiter':
+            user.company = data.get('company', user.company)
+            user.job_title = data.get('job_title', user.job_title)
+            
+        db.session.commit()
+        return jsonify({"message": "Profile updated successfully"}), 200

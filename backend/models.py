@@ -23,6 +23,8 @@ class User(db.Model):
     name = db.Column(db.String(255), nullable=True) # Added name field
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False) # 'applicant' or 'recruiter'
+    phone = db.Column(db.String(20), nullable=True)
+    location = db.Column(db.String(255), nullable=True)
     
     __mapper_args__ = {
         'polymorphic_on': role,
@@ -41,6 +43,8 @@ class Applicant(User):
 class Recruiter(User):
     __tablename__ = 'recruiters'
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.user_id', ondelete='CASCADE'), primary_key=True)
+    company = db.Column(db.String(255), nullable=True)
+    job_title = db.Column(db.String(255), nullable=True)
     jobs = db.relationship('Job', backref='recruiter', lazy=True, cascade='all, delete-orphan')
 
     __mapper_args__ = {
