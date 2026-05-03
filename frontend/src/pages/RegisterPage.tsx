@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useNavigate } from "react-router";
+import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,17 +9,40 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import React from "react";
 
 export default function RegisterPage() {
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const searchParams = new URLSearchParams(window.location.search);
   const initialRole = searchParams.get('role') || 'applicant';
   const [role, setRole] = React.useState(initialRole);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (role === "applicant") {
-      setLocation("/applicant/dashboard");
-    } else {
-      setLocation("/recruiter/dashboard");
+    setError("");
+    try {
+      const response = await axios.post("http://localhost:5000/api/auth/register", {
+        email,
+        password,
+        role
+      });
+      
+      const userId = response.data.user_id;
+      if (userId) {
+        localStorage.setItem("user_id", userId);
+        localStorage.setItem("user_role", role);
+      }
+      
+      // Auto-login after registration could go here
+      // For now just redirect
+      if (role === "applicant") {
+        navigate("/applicant/dashboard");
+      } else {
+        navigate("/recruiter/dashboard");
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || "Registration failed");
     }
   };
 
@@ -60,17 +84,18 @@ export default function RegisterPage() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
-                <Input id="name" type="text" placeholder="John Doe" required className="h-11" />
+                <Input id="name" type="text" placeholder="John Doe" value={name} onChange={(e) => setName(e.target.value)} required className="h-11" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="name@example.com" required className="h-11" />
+                <Input id="email" type="email" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="h-11" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" required className="h-11" />
+                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="h-11" />
               </div>
             </div>
+            {error && <p className="text-red-500 text-sm">{error}</p>}
 
             <Button type="submit" className="w-full h-11 text-base bg-[#1E3A5F] hover:bg-[#1E3A5F]/90">
               Create Account

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useNavigate } from "react-router";
+import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,15 +9,36 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import React from "react";
 
 export default function LoginPage() {
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const [role, setRole] = React.useState("applicant");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (role === "applicant") {
-      setLocation("/applicant/dashboard");
-    } else {
-      setLocation("/recruiter/dashboard");
+    setError("");
+    try {
+      const response = await axios.post("http://localhost:5000/api/auth/login", {
+        email,
+        password
+      });
+      
+      const userRole = response.data.role || role;
+      const userId = response.data.user_id;
+      
+      if (userId) {
+        localStorage.setItem("user_id", userId);
+        localStorage.setItem("user_role", userRole);
+      }
+      
+      if (userRole === "applicant") {
+        navigate("/applicant/dashboard");
+      } else {
+        navigate("/recruiter/dashboard");
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || "Login failed");
     }
   };
 
@@ -58,16 +80,18 @@ export default function LoginPage() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="name@example.com" required className="h-11" />
+                <Input id="email" type="email" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="h-11" />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
                   <a href="#" className="text-sm font-medium text-[#F97316] hover:underline">Forgot password?</a>
                 </div>
-                <Input id="password" type="password" required className="h-11" />
+                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="h-11" />
               </div>
             </div>
+            
+            {error && <p className="text-red-500 text-sm">{error}</p>}
 
             <Button type="submit" className="w-full h-11 text-base bg-[#1E3A5F] hover:bg-[#1E3A5F]/90">
               Sign In

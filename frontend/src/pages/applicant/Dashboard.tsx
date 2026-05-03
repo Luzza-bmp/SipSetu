@@ -4,19 +4,34 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Target, FileText, Briefcase, Eye, ChevronRight } from "lucide-react";
 import { Link } from "react-router";
+import { useState, useEffect } from "react";
+import axios from "axios";
 
 const matchScore = 78;
-const topJobs = [
-  { id: 1, title: "Frontend Developer", company: "TechCorp", match: 92, location: "Remote" },
-  { id: 2, title: "React Engineer", company: "StartupXYZ", match: 87, location: "Bangalore" },
-  { id: 3, title: "UI Developer", company: "DesignHub", match: 81, location: "Mumbai" },
-  { id: 4, title: "Full Stack Dev", company: "InnovateCo", match: 75, location: "Pune" },
-];
+// const topJobs = [
+//   { id: 1, title: "Frontend Developer", company: "TechCorp", match: 92, location: "Remote" },
+//   { id: 2, title: "React Engineer", company: "StartupXYZ", match: 87, location: "Bangalore" },
+//   { id: 3, title: "UI Developer", company: "DesignHub", match: 81, location: "Mumbai" },
+//   { id: 4, title: "Full Stack Dev", company: "InnovateCo", match: 75, location: "Pune" },
+// ];
 const resumeStrength = 65;
 const skillGaps = ["TypeScript", "Node.js", "System Design"];
 
 export default function ApplicantDashboardHome() {
   const date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  const [jobs, setJobs] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/api/jobs");
+        setJobs(response.data);
+      } catch (err) {
+        console.error("Failed to fetch jobs", err);
+      }
+    };
+    fetchJobs();
+  }, []);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -89,15 +104,22 @@ export default function ApplicantDashboardHome() {
           </CardHeader>
           <CardContent className="p-0 flex-1">
             <div className="divide-y divide-slate-100">
-              {topJobs.map((job) => (
-                <div key={job.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+              {jobs.length === 0 ? (
+                <div className="p-8 text-center text-slate-500">No jobs posted yet. Check back later!</div>
+              ) : jobs.slice(0, 4).map((job) => (
+                <div key={job.job_id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
                   <div className="space-y-1">
                     <h3 className="font-semibold text-slate-900">{job.title}</h3>
-                    <p className="text-sm text-slate-500">{job.company} • {job.location}</p>
+                    <p className="text-sm text-slate-500">Recruiter ID: {job.recruiter_id.substring(0, 8)} • Location TBD</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {job.skills && job.skills.map((skill: string) => (
+                        <span key={skill} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{skill}</span>
+                      ))}
+                    </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <Badge className={job.match >= 85 ? 'bg-green-100 text-green-700 hover:bg-green-100' : 'bg-orange-100 text-orange-700 hover:bg-orange-100'}>
-                      {job.match}% Match
+                    <Badge className={'bg-slate-100 text-slate-700 hover:bg-slate-100'}>
+                      Pending Analysis
                     </Badge>
                     <Button variant="outline" size="sm">View</Button>
                   </div>

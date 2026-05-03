@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Briefcase, Users, UserCheck, TrendingUp, ChevronRight, FileText } from "lucide-react";
 import { Link } from "react-router";
+import { useState, useEffect } from "react";
+import axios from "axios";
 
 const stats = { activePostings: 5, totalApplicants: 143, shortlisted: 28, hiresThisMonth: 3 };
 const topCandidates = [
@@ -10,14 +12,30 @@ const topCandidates = [
   { id: 2, name: "Arjun Nair", role: "Full Stack Developer", match: 88, skills: ["Node.js", "React", "PostgreSQL"], status: "In Review" },
   { id: 3, name: "Sneha Patel", role: "UI Developer", match: 84, skills: ["CSS", "Figma", "HTML"], status: "Applied" },
 ];
-const recentPostings = [
-  { id: 1, title: "Frontend Developer", applicants: 47, posted: "3 days ago", status: "Active" },
-  { id: 2, title: "Backend Engineer", applicants: 31, posted: "5 days ago", status: "Active" },
-  { id: 3, title: "DevOps Engineer", applicants: 22, posted: "1 week ago", status: "Active" },
-];
+// const recentPostings = [
+//   { id: 1, title: "Frontend Developer", applicants: 47, posted: "3 days ago", status: "Active" },
+//   { id: 2, title: "Backend Engineer", applicants: 31, posted: "5 days ago", status: "Active" },
+//   { id: 3, title: "DevOps Engineer", applicants: 22, posted: "1 week ago", status: "Active" },
+// ];
 
 export default function RecruiterDashboardHome() {
   const date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  const [activeJobs, setActiveJobs] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/api/jobs");
+        const userId = localStorage.getItem("user_id");
+        // Filter jobs created by this recruiter
+        const myJobs = response.data.filter((job: any) => job.recruiter_id === userId);
+        setActiveJobs(myJobs);
+      } catch (err) {
+        console.error("Failed to fetch active jobs", err);
+      }
+    };
+    fetchJobs();
+  }, []);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -39,7 +57,7 @@ export default function RecruiterDashboardHome() {
           <CardContent className="p-6 flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-sm font-medium text-slate-500">Active Postings</p>
-              <p className="text-3xl font-bold text-slate-900">{stats.activePostings}</p>
+              <p className="text-3xl font-bold text-slate-900">{activeJobs.length}</p>
             </div>
             <div className="h-12 w-12 rounded-full bg-blue-50 flex items-center justify-center">
               <Briefcase className="h-6 w-6 text-[#1E3A5F]" />
@@ -141,15 +159,17 @@ export default function RecruiterDashboardHome() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-slate-100">
-              {recentPostings.map(post => (
-                <div key={post.id} className="p-4 hover:bg-slate-50 transition-colors">
+              {activeJobs.length === 0 ? (
+                <div className="p-8 text-center text-slate-500">No active job postings yet.</div>
+              ) : activeJobs.map(post => (
+                <div key={post.job_id} className="p-4 hover:bg-slate-50 transition-colors">
                   <div className="flex justify-between items-start mb-2">
                     <h4 className="font-semibold text-slate-900">{post.title}</h4>
                     <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-50 border-blue-200">Active</Badge>
                   </div>
                   <div className="flex justify-between items-center text-sm text-slate-500">
-                    <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> {post.applicants} Applicants</span>
-                    <span>{post.posted}</span>
+                    <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> 0 Applicants</span>
+                    <span>Recent</span>
                   </div>
                 </div>
               ))}

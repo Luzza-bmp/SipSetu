@@ -1,4 +1,5 @@
 import { useState } from "react";
+import axios from "axios";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,8 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { X, Sparkles } from "lucide-react";
 
 export default function RecruiterPostJob() {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [skills, setSkills] = useState<string[]>(["React", "TypeScript", "Git"]);
   const [skillInput, setSkillInput] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const addSkill = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && skillInput.trim()) {
@@ -26,6 +30,33 @@ export default function RecruiterPostJob() {
     setSkills(skills.filter(s => s !== skillToRemove));
   };
 
+  const handlePostJob = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title) {
+        alert("Please enter a job title");
+        return;
+    }
+    setIsSubmitting(true);
+    try {
+      // In a real app, recruiter_id would come from auth context
+      const recruiter_id = localStorage.getItem("user_id") || "00000000-0000-0000-0000-000000000000"; 
+      await axios.post("http://localhost:5000/api/jobs", {
+        recruiter_id,
+        title,
+        skills
+      });
+      alert("Job posted successfully!");
+      setTitle("");
+      setDescription("");
+      setSkills([]);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to post job");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
       <div>
@@ -39,11 +70,11 @@ export default function RecruiterPostJob() {
           <CardDescription>Be as specific as possible to get better AI matches.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="space-y-8">
+          <form className="space-y-8" onSubmit={handlePostJob}>
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Job Title</Label>
-                <Input id="title" placeholder="e.g. Senior Frontend Developer" className="h-11" />
+                <Input id="title" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Senior Frontend Developer" className="h-11" required />
               </div>
 
               <div className="space-y-2">
@@ -55,6 +86,8 @@ export default function RecruiterPostJob() {
                 </div>
                 <Textarea 
                   id="description" 
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
                   placeholder="Describe the role, responsibilities, and what success looks like..." 
                   className="min-h-[160px] resize-y"
                 />
@@ -140,8 +173,8 @@ export default function RecruiterPostJob() {
               <Button type="button" variant="outline" className="h-12 sm:flex-1 text-slate-600 bg-white hover:bg-slate-50">
                 Save as Draft
               </Button>
-              <Button type="button" className="h-12 sm:flex-[2] bg-[#F97316] hover:bg-[#F97316]/90 text-white text-base shadow-lg shadow-orange-500/20">
-                Post Job Opening
+              <Button type="submit" disabled={isSubmitting} className="h-12 sm:flex-[2] bg-[#F97316] hover:bg-[#F97316]/90 text-white text-base shadow-lg shadow-orange-500/20">
+                {isSubmitting ? "Posting..." : "Post Job Opening"}
               </Button>
             </div>
           </form>
