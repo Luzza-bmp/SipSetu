@@ -7,13 +7,13 @@ db = SQLAlchemy()
 
 # Junction tables
 job_skills = db.Table('job_skills',
-    db.Column('job_id', UUID(as_uuid=True), db.ForeignKey('jobs.job_id', ondelete='CASCADE'), primaryKey=True),
-    db.Column('skill_id', UUID(as_uuid=True), db.ForeignKey('skills.skill_id', ondelete='CASCADE'), primaryKey=True)
+    db.Column('job_id', UUID(as_uuid=True), db.ForeignKey('jobs.job_id', ondelete='CASCADE'), primary_key=True),
+    db.Column('skill_id', UUID(as_uuid=True), db.ForeignKey('skills.skill_id', ondelete='CASCADE'), primary_key=True)
 )
 
 resume_skills = db.Table('resume_skills',
-    db.Column('resume_id', UUID(as_uuid=True), db.ForeignKey('resumes.resume_id', ondelete='CASCADE'), primaryKey=True),
-    db.Column('skill_id', UUID(as_uuid=True), db.ForeignKey('skills.skill_id', ondelete='CASCADE'), primaryKey=True)
+    db.Column('resume_id', UUID(as_uuid=True), db.ForeignKey('resumes.resume_id', ondelete='CASCADE'), primary_key=True),
+    db.Column('skill_id', UUID(as_uuid=True), db.ForeignKey('skills.skill_id', ondelete='CASCADE'), primary_key=True)
 )
 
 class User(db.Model):
