@@ -145,6 +145,8 @@ export default function RegisterPage() {
           </form>
         </CardContent>
       </Card>
-    </div>
+    </motion.div>
+  </div>
+</div>
   );
 }
