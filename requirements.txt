@@ -1,6 +1,8 @@
-flask
+flask 
 flask-sqlalchemy
-flask-jwt-extended
-psycopg2-binary
-python-dotenv
-bcrypt
+flask-jwt-extended # A Flask extension for handling JSON Web Tokens (JWT), which are used for secure authentication.
+# It provides tools to create, verify, and manage tokens for user login/logout. It's likely used in routes/auth.py for protecting endpoints and managing user sessions.
+psycopg2-binary # A PostgreSQL database adapter for Python, allowing your app to connect to and interact with a PostgreSQL database.
+# The "-binary" version includes pre-compiled binaries for easier installation. Based on your .env file, it's connecting to a local PostgreSQL instance for storing app data.
+python-dotenv # A Python library that reads key-value pairs from a .env file and can set them as environment variables.
+bcrypt # A library for hashing passwords securely. It provides functions to hash and verify passwords, making it a good choice for user authentication.
