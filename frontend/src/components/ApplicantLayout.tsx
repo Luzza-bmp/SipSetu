@@ -43,7 +43,11 @@ export function ApplicantLayout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        <div className="p-4 border-t border-white/10">
+        <Link
+          to="/applicant/profile"
+          className="block p-4 border-t border-white/10 transition-colors hover:bg-white/5 rounded-t-xl"
+          data-testid="sidebar-profile-link"
+        >
           <div className="flex items-center gap-3">
             <Avatar>
               <AvatarImage src="" />
@@ -58,7 +62,7 @@ export function ApplicantLayout({ children }: { children: React.ReactNode }) {
               <span className="text-xs text-slate-400">Job Seeker</span>
             </div>
           </div>
-        </div>
+        </Link>
       </aside>
 
       {/* Main Content */}
