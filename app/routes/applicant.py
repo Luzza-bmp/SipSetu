@@ -1,6 +1,8 @@
 from flask import Blueprint, request, jsonify
 import os
 
+from app.services.resume_parser import parse_resume
+
 applicant_bp = Blueprint("applicant", __name__)
 
 UPLOAD_FOLDER = "uploads"
@@ -21,7 +23,10 @@ def upload_resume():
 
     file.save(filepath)
 
+    extracted_text = parse_resume(filepath)
+
     return jsonify({
-        "message": "Resume uploaded successfully",
-        "filename": file.filename
+        "message": "Resume parsed successfully",
+        "filename": file.filename,
+        "text": extracted_text
     })
