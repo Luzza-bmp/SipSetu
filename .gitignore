@@ -2,4 +2,22 @@ node_modules/
 dist/
 .env
 venv/
+# Python env
+backend/venv/
+backend/.venv/
 
+# Node deps
+frontend/node_modules/
+
+# Local env / secrets
+backend/.env
+frontend/.env
+
+# Logs / dumps
+backend/db_dump.sql
+backend/backend_log_v2.txt
+
+# OS / editors
+.DS_Store
+Thumbs.db
+*.swp
