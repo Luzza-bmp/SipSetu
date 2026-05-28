@@ -21,3 +21,9 @@ backend/backend_log_v2.txt
 .DS_Store
 Thumbs.db
 *.swp
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
