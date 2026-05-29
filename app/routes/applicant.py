@@ -23,10 +23,10 @@ def upload_resume():
 
     file.save(filepath)
 
-    extracted_text = parse_resume(filepath)
+    parsed_data = parse_resume(filepath)
 
     return jsonify({
         "message": "Resume parsed successfully",
         "filename": file.filename,
-        "text": extracted_text
+        "data": parsed_data
     })
