@@ -1,12 +1,12 @@
 from flask import Flask #flask is a package where the Flask class is defined. We import it to create an instance of the Flask application.
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
-
+#__init__.py is a special file in Python packages that is executed when the package is imported. It can be used to initialize the package, set up configurations, and define what is available when the package is imported.
 db = SQLAlchemy() # () is used to create an instance of the SQLAlchemy class, which will be used to interact with the database. This instance will be initialized with the Flask application later in the create_app function.
 jwt = JWTManager()
 
 def create_app():
-    app = Flask(__name__)#flask(__name__) creates an instance of the Flask class, which represents the web application.
+    app = Flask(__name__)#Flask(__name__) creates an instance of the flask class, which represents the web application.
     # The __name__ variable is passed to Flask to help it determine the root path of the application, which is important for locating resources and templates.
     #__name__ is a special Python variable that tells Flask where this code is located.
 
@@ -27,8 +27,12 @@ def create_app():
 
     from app.routes.auth import auth_bp #auth_bp is a Blueprint instance defined in the auth.py file located in the app/routes directory. A Blueprint is a way to organize a group of related routes and views in a Flask application.
     # It allows you to modularize your application and keep related functionality together.
-    
+    from app.routes.resumes  import resumes_bp   # NEW
+    from app.routes.jobs     import jobs_bp      # NEW
+    from app.routes.rankings import rankings_bp  # NEW
     app.register_blueprint(auth_bp, url_prefix="/auth") #register_blueprint is a method of the Flask application instance that is used to register a Blueprint with the application. 
     #It takes two parameters: the Blueprint instance (auth_bp) and an optional url_prefix ("/auth"). The url_prefix is a string that will be prefixed to all routes defined in the Blueprint, meaning that all routes in auth_bp will be accessible under the "/auth" URL path.
-
+    app.register_blueprint(resumes_bp,  url_prefix="/resumes")    # NEW
+    app.register_blueprint(jobs_bp,     url_prefix="/jobs")       # NEW
+    app.register_blueprint(rankings_bp, url_prefix="/jobs")       # NEW → /jobs/<id>/rank
     return app

@@ -6,3 +6,17 @@ psycopg2-binary # A PostgreSQL database adapter for Python, allowing your app to
 # The "-binary" version includes pre-compiled binaries for easier installation. Based on your .env file, it's connecting to a local PostgreSQL instance for storing app data.
 python-dotenv # A Python library that reads key-value pairs from a .env file and can set them as environment variables.
 bcrypt # A library for hashing passwords securely. It provides functions to hash and verify passwords, making it a good choice for user authentication.
+
+# ── Resume parsing ─────────────────────────────────────────────────────────
+pdfplumber          # PDF text extraction (preferred; handles multi-column PDFs)
+PyPDF2              # Fallback PDF extractor
+python-docx         # .docx text extraction
+ 
+# ── Embeddings ─────────────────────────────────────────────────────────────
+sentence-transformers   # all-MiniLM-L6-v2; pulls in torch (CPU-only by default)
+ 
+# ── pgvector SQLAlchemy integration ────────────────────────────────────────
+pgvector            # Adds Vector column type for SQLAlchemy
+ 
+# ── File uploads ────────────────────────────────────────────────────────────
+Werkzeug            # secure_filename (already a Flask dep; listed for clarity)
