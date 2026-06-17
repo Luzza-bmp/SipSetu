@@ -39,7 +39,11 @@ def create_app():
     # It takes two parameters: the Blueprint instance (auth_bp) and an optional url_prefix ("/auth"). The url_prefix is a string that will be prefixed to all routes defined in the Blueprint, meaning that all routes in auth_bp will be accessible under the "/auth" URL path.
 
     from app.routes.applicant import applicant_bp
-
     app.register_blueprint(applicant_bp, url_prefix="/applicant")
 
+    from app.routes.recruiter import recruiter_bp
+    app.register_blueprint(recruiter_bp, url_prefix="/recruiter")
+
     return app
+
+
