@@ -32,6 +32,15 @@ class User(db.Model):
         'polymorphic_identity': 'user'
     }
 
+    def __init__(self, email=None, password_hash=None, role=None, name=None, phone=None, location=None, **kwargs):
+        super().__init__(**kwargs)
+        self.email = email
+        self.password_hash = password_hash
+        self.role = role or 'user'
+        self.name = name
+        self.phone = phone
+        self.location = location
+
 class Applicant(User):
     __tablename__ = 'applicants'
     __table_args__ = {"schema": "public"}
@@ -42,6 +51,9 @@ class Applicant(User):
     __mapper_args__ = {
         'polymorphic_identity': 'applicant',
     }
+
+    def __init__(self, email=None, password_hash=None, name=None, phone=None, location=None, **kwargs):
+        super().__init__(email=email, password_hash=password_hash, role='applicant', name=name, phone=phone, location=location, **kwargs)
 
 class Recruiter(User):
     __tablename__ = 'recruiters'
@@ -56,12 +68,21 @@ class Recruiter(User):
         'polymorphic_identity': 'recruiter',
     }
 
+    def __init__(self, email=None, password_hash=None, name=None, phone=None, location=None, company=None, job_title=None, **kwargs):
+        super().__init__(email=email, password_hash=password_hash, role='recruiter', name=name, phone=phone, location=location, **kwargs)
+        self.company = company
+        self.job_title = job_title
+
 class Skill(db.Model):
     __tablename__ = 'skills'
     __table_args__ = {"schema": "public"}
     
     skill_id = db.Column(db.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     skill_name = db.Column(db.String(100), unique=True, nullable=False)
+
+    def __init__(self, skill_name=None, **kwargs):
+        super().__init__(**kwargs)
+        self.skill_name = skill_name
 
 class Job(db.Model):
     __tablename__ = 'jobs'
@@ -74,6 +95,13 @@ class Job(db.Model):
     
     skills = db.relationship('Skill', secondary=job_skills, backref=db.backref('jobs', lazy='dynamic'))
     rankings = db.relationship('Ranking', backref='job', lazy=True, cascade='all, delete-orphan')
+
+    def __init__(self, recruiter_id=None, title=None, created_at=None, **kwargs):
+        super().__init__(**kwargs)
+        self.recruiter_id = recruiter_id
+        self.title = title
+        if created_at is not None:
+            self.created_at = created_at
 
 class Resume(db.Model):
     __tablename__ = 'resumes'
@@ -88,6 +116,14 @@ class Resume(db.Model):
     skills = db.relationship('Skill', secondary=resume_skills, backref=db.backref('resumes', lazy='dynamic'))
     rankings = db.relationship('Ranking', backref='resume', lazy=True, cascade='all, delete-orphan')
 
+    def __init__(self, applicant_id=None, raw_text=None, file_path=None, uploaded_at=None, **kwargs):
+        super().__init__(**kwargs)
+        self.applicant_id = applicant_id
+        self.raw_text = raw_text
+        self.file_path = file_path
+        if uploaded_at is not None:
+            self.uploaded_at = uploaded_at
+
 class Ranking(db.Model):
     __tablename__ = 'rankings'
     __table_args__ = {"schema": "public"}
@@ -98,3 +134,11 @@ class Ranking(db.Model):
     matching_score = db.Column(db.Float)
     candidate_rank = db.Column(db.Integer)
     status = db.Column(db.String(20), nullable=False, default='Pending')
+
+    def __init__(self, job_id=None, resume_id=None, matching_score=None, candidate_rank=None, status='Pending', **kwargs):
+        super().__init__(**kwargs)
+        self.job_id = job_id
+        self.resume_id = resume_id
+        self.matching_score = matching_score
+        self.candidate_rank = candidate_rank
+        self.status = status
