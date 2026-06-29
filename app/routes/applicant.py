@@ -8,6 +8,7 @@ from app.services.docx_parser import extract_docx_text
 from app.utils.matcher import match_skills
 from app.utils.scorer import calculate_score
 from app.utils.feedback import generate_feedback
+from app.utils.extractor import extract_skills
 
 applicant_bp = Blueprint("applicant", __name__)
 
@@ -219,3 +220,63 @@ def get_matched_jobs_path(applicant_id):
         return jsonify({"error": error}), status_code
         
     return jsonify(result), 200
+
+@applicant_bp.route("/analyze-job", methods=["POST"])
+def analyze_job():
+    data = request.get_json() or {}
+    description = data.get("description", "")
+    if not description:
+        return jsonify({"error": "Missing description"}), 400
+    skills = extract_skills(description)
+    return jsonify({"skills": skills}), 200
+
+@applicant_bp.route("/match", methods=["POST"])
+def match_candidate_job():
+    data = request.get_json() or {}
+    candidate_id = data.get("candidate_id")
+    job_id = data.get("job_id")
+    
+    if not candidate_id or not job_id:
+        return jsonify({"error": "Missing candidate_id or job_id"}), 400
+        
+    applicant = Applicant.query.get(candidate_id)
+    if not applicant:
+        return jsonify({"error": "Applicant not found"}), 404
+        
+    job = Job.query.get(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+        
+    latest_resume = Resume.query.filter_by(applicant_id=candidate_id).order_by(Resume.uploaded_at.desc()).first()
+    if not latest_resume:
+        return jsonify({"error": "No resume found for applicant"}), 404
+        
+    resume_skills = [s.skill_name for s in latest_resume.skills]
+    job_skills = [s.skill_name for s in job.skills]
+    
+    matched, missing = match_skills(resume_skills, job_skills)
+    score = calculate_score(matched, job_skills)
+    
+    # Send score data to recruiter side (update/create ranking)
+    existing_ranking = Ranking.query.filter_by(job_id=job_id, resume_id=latest_resume.resume_id).first()
+    if existing_ranking:
+        existing_ranking.matching_score = score
+    else:
+        ranking = Ranking(
+            job_id=job_id,
+            resume_id=latest_resume.resume_id,
+            matching_score=score,
+            status='Pending'
+        )
+        db.session.add(ranking)
+        
+    db.session.commit()
+    
+    return jsonify({
+        "candidate_id": str(candidate_id),
+        "job_id": str(job_id),
+        "score": score,
+        "matched_skills": matched,
+        "missing_skills": missing
+    }), 200
+

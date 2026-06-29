@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from app import db
-from app.models import User #app/models.py=app.models
+from app.models import Applicant, Recruiter, User #app/models.py=app.models
 import bcrypt
 #blueprint is a way to organize a group of related routes and views in a Flask application. 
 # #It allows you to modularize your application and keep related functionality together.
@@ -33,8 +33,14 @@ def register():
     password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8") #bcrypt.hashpw(password_bytes, salt)
     #utf8 converts the password string into bytes, which is required by bcrypt. 
 #with salt, bcrypt.gensalt() generates a random unique salt value that is used to enhance the security of the hashed password. The resulting hash is then decoded back into a string format for storage in the database.
-    new_user = User(email=email, password_hash=password_hash, role=role)
-    db.session.add(new_user) #only stored in the session, not yet in the database. To save it to the database, we need to call db.session.commit() after adding all the new users or making all the changes we want to persist.
+    if role == "applicant":
+        new_user = Applicant(email=email, password_hash=password_hash)
+    elif role == "recruiter":
+        new_user = Recruiter(email=email, password_hash=password_hash)
+    else:
+        new_user = User(email=email, password_hash=password_hash, role=role)
+
+    db.session.add(new_user)
     db.session.commit()
 
     return jsonify({"message": "User registered successfully"}), 201

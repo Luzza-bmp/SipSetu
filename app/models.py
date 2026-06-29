@@ -4,14 +4,14 @@ from app import db
 
 # Junction tables
 job_skills = db.Table('job_skills',
-    db.Column('job_id', db.UUID(as_uuid=True), db.ForeignKey('jobs.job_id', ondelete='CASCADE'), primary_key=True),
-    db.Column('skill_id', db.UUID(as_uuid=True), db.ForeignKey('skills.skill_id', ondelete='CASCADE'), primary_key=True),
+    db.Column('job_id', db.UUID(as_uuid=True), db.ForeignKey('public.jobs.job_id', ondelete='CASCADE'), primary_key=True),
+    db.Column('skill_id', db.UUID(as_uuid=True), db.ForeignKey('public.skills.skill_id', ondelete='CASCADE'), primary_key=True),
     schema='public'
 )
 
 resume_skills = db.Table('resume_skills',
-    db.Column('resume_id', db.UUID(as_uuid=True), db.ForeignKey('resumes.resume_id', ondelete='CASCADE'), primary_key=True),
-    db.Column('skill_id', db.UUID(as_uuid=True), db.ForeignKey('skills.skill_id', ondelete='CASCADE'), primary_key=True),
+    db.Column('resume_id', db.UUID(as_uuid=True), db.ForeignKey('public.resumes.resume_id', ondelete='CASCADE'), primary_key=True),
+    db.Column('skill_id', db.UUID(as_uuid=True), db.ForeignKey('public.skills.skill_id', ondelete='CASCADE'), primary_key=True),
     schema='public'
 )
 
