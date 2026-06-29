@@ -1,6 +1,8 @@
+import os, uuid as uuid_lib
 from flask import Blueprint, request, jsonify
-from models import db, User, Applicant, Recruiter, Job, Resume, Skill, Ranking
+from models import db, User, Applicant, Recruiter, Job, Resume, Skill, Ranking, Bookmark
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
@@ -490,4 +492,333 @@ def update_ranking(ranking_id):
         "message": "Ranking updated successfully",
         "ranking_id": str(ranking.ranking_id),
         "candidate_rank": ranking.candidate_rank
+    }), 200
+
+# ============ RESUME FILE UPLOAD ============
+
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def extract_text_from_pdf(filepath):
+    try:
+        import fitz
+        doc = fitz.open(filepath)
+        text = ""
+        for page in doc:
+            text += page.get_text()
+        doc.close()
+        return text
+    except Exception as e:
+        print(f"Error extracting PDF text: {e}")
+        return ""
+
+def extract_text_from_docx(filepath):
+    try:
+        from docx import Document
+        doc = Document(filepath)
+        text = "\n".join([p.text for p in doc.paragraphs])
+        return text
+    except Exception as e:
+        print(f"Error extracting DOCX text: {e}")
+        return ""
+
+@api.route('/resumes/upload', methods=['POST'])
+def upload_resume():
+    """Upload resume file (PDF or DOCX), extract text and skills"""
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+    
+    file = request.files['file']
+    applicant_id = request.form.get('applicant_id')
+    
+    if not file.filename:
+        return jsonify({"error": "No file selected"}), 400
+    if not applicant_id:
+        return jsonify({"error": "Missing applicant_id"}), 400
+    
+    applicant = Applicant.query.get(applicant_id)
+    if not applicant:
+        return jsonify({"error": "Applicant not found"}), 404
+    
+    filename = secure_filename(file.filename)
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ['.pdf', '.docx']:
+        return jsonify({"error": "Only PDF and DOCX files are supported"}), 400
+    
+    # Save file
+    unique_name = f"{uuid_lib.uuid4()}_{filename}"
+    filepath = os.path.join(UPLOAD_FOLDER, unique_name)
+    file.save(filepath)
+    
+    # Extract text
+    raw_text = ""
+    if ext == '.pdf':
+        raw_text = extract_text_from_pdf(filepath)
+    elif ext == '.docx':
+        raw_text = extract_text_from_docx(filepath)
+    
+    # Extract skills
+    extracted_skills = extract_skills_from_text(raw_text)
+    
+    # Create resume
+    new_resume = Resume(applicant_id=applicant_id, raw_text=raw_text, file_path=filepath)
+    
+    for skill_name in extracted_skills:
+        skill = Skill.query.filter_by(skill_name=skill_name.lower()).first()
+        if not skill:
+            skill = Skill(skill_name=skill_name.lower())
+            db.session.add(skill)
+        if skill not in new_resume.skills:
+            new_resume.skills.append(skill)
+    
+    db.session.add(new_resume)
+    db.session.flush()
+    create_rankings_for_resume(new_resume.resume_id, applicant_id)
+    db.session.commit()
+    
+    return jsonify({
+        "message": "Resume uploaded successfully",
+        "resume_id": str(new_resume.resume_id),
+        "filename": filename,
+        "skills_extracted": extracted_skills
+    }), 201
+
+# ============ APPLICANT STATS ============
+
+@api.route('/applicants/<applicant_id>/stats', methods=['GET'])
+def get_applicant_stats(applicant_id):
+    """Get aggregate dashboard stats for an applicant"""
+    applicant = Applicant.query.get(applicant_id)
+    if not applicant:
+        return jsonify({"error": "Applicant not found"}), 404
+    
+    # Get latest resume
+    latest_resume = Resume.query.filter_by(applicant_id=applicant_id).order_by(Resume.uploaded_at.desc()).first()
+    
+    resume_strength = 0
+    match_score = 0
+    resume_skill_count = 0
+    
+    if latest_resume:
+        resume_skills_list = [s.skill_name for s in latest_resume.skills]
+        resume_skill_count = len(resume_skills_list)
+        resume_strength = min(resume_skill_count * 10, 100)
+        
+        # Get average match score
+        avg_score = db.session.query(func.avg(Ranking.matching_score)).filter(
+            Ranking.resume_id == latest_resume.resume_id
+        ).scalar()
+        match_score = round(avg_score, 1) if avg_score else 0
+    
+    # Count rankings (as proxy for applications)
+    rankings_count = 0
+    if latest_resume:
+        rankings_count = Ranking.query.filter_by(resume_id=latest_resume.resume_id).count()
+    
+    # Profile views (mock count - in production this would be tracked)
+    profile_views = resume_skill_count * 3 if resume_skill_count > 0 else 0
+    
+    # Skill gaps (skills from matched jobs not in resume)
+    skill_gaps = []
+    if latest_resume:
+        rankings_list = Ranking.query.filter_by(resume_id=latest_resume.resume_id).order_by(Ranking.matching_score.desc()).limit(5).all()
+        all_job_skills = set()
+        for r in rankings_list:
+            for s in r.job.skills:
+                all_job_skills.add(s.skill_name)
+        resume_skill_set = set(s.skill_name.lower() for s in latest_resume.skills)
+        skill_gaps = [s for s in all_job_skills if s.lower() not in resume_skill_set][:5]
+    
+    return jsonify({
+        "match_score": match_score,
+        "resume_strength": resume_strength,
+        "jobs_applied": rankings_count,
+        "profile_views": profile_views,
+        "skill_gaps": skill_gaps,
+        "has_resume": latest_resume is not None
+    }), 200
+
+# ============ BOOKMARKS ============
+
+@api.route('/bookmarks', methods=['GET', 'POST'])
+def handle_bookmarks():
+    """Get applicant bookmarks or add a new bookmark"""
+    if request.method == 'POST':
+        data = request.get_json()
+        applicant_id = data.get('applicant_id')
+        job_id = data.get('job_id')
+        
+        if not applicant_id or not job_id:
+            return jsonify({"error": "Missing applicant_id or job_id"}), 400
+        
+        existing = Bookmark.query.filter_by(applicant_id=applicant_id, job_id=job_id).first()
+        if existing:
+            return jsonify({"message": "Already bookmarked", "bookmark_id": str(existing.bookmark_id)}), 200
+        
+        bookmark = Bookmark(applicant_id=applicant_id, job_id=job_id)
+        db.session.add(bookmark)
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Job bookmarked successfully",
+            "bookmark_id": str(bookmark.bookmark_id)
+        }), 201
+    
+    elif request.method == 'GET':
+        applicant_id = request.args.get('applicant_id')
+        if not applicant_id:
+            return jsonify({"error": "Missing applicant_id"}), 400
+        
+        bookmarks = Bookmark.query.filter_by(applicant_id=applicant_id).all()
+        job_ids = [str(b.job_id) for b in bookmarks]
+        
+        return jsonify({"bookmarked_job_ids": job_ids}), 200
+
+@api.route('/bookmarks/<bookmark_id>', methods=['DELETE'])
+def remove_bookmark(bookmark_id):
+    """Remove a bookmark"""
+    bookmark = Bookmark.query.get(bookmark_id)
+    if not bookmark:
+        return jsonify({"error": "Bookmark not found"}), 404
+    
+    db.session.delete(bookmark)
+    db.session.commit()
+    
+    return jsonify({"message": "Bookmark removed successfully"}), 200
+
+@api.route('/bookmarks/by-job', methods=['DELETE'])
+def remove_bookmark_by_job():
+    """Remove a bookmark by applicant_id and job_id"""
+    applicant_id = request.args.get('applicant_id')
+    job_id = request.args.get('job_id')
+    
+    if not applicant_id or not job_id:
+        return jsonify({"error": "Missing applicant_id or job_id"}), 400
+    
+    bookmark = Bookmark.query.filter_by(applicant_id=applicant_id, job_id=job_id).first()
+    if not bookmark:
+        return jsonify({"error": "Bookmark not found"}), 404
+    
+    db.session.delete(bookmark)
+    db.session.commit()
+    
+    return jsonify({"message": "Bookmark removed successfully"}), 200
+
+# ============ JOB UPDATE (save draft / edit) ============
+
+@api.route('/jobs/<job_id>', methods=['PUT'])
+def update_job(job_id):
+    """Update a job posting (edit or save as draft)"""
+    job = Job.query.get(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    
+    data = request.get_json()
+    
+    if 'title' in data:
+        job.title = data['title']
+    if 'description' in data:
+        job.description = data['description']
+    if 'status' in data:
+        job.status = data['status']
+    if 'skills' in data:
+        # Clear existing skills
+        job.skills = []
+        for skill_name in data['skills']:
+            if not skill_name.strip():
+                continue
+            skill = Skill.query.filter_by(skill_name=skill_name.lower()).first()
+            if not skill:
+                skill = Skill(skill_name=skill_name.lower())
+                db.session.add(skill)
+            if skill not in job.skills:
+                job.skills.append(skill)
+    
+    db.session.commit()
+    
+    return jsonify({
+        "message": "Job updated successfully",
+        "job_id": str(job.job_id),
+        "status": job.status
+    }), 200
+
+# ============ AI DESCRIPTION IMPROVEMENT ============
+
+@api.route('/jobs/improve-description', methods=['POST'])
+def improve_job_description():
+    """Improve job description using AI (mock implementation)"""
+    data = request.get_json()
+    title = data.get('title', '')
+    current_description = data.get('description', '')
+    
+    if not title:
+        return jsonify({"error": "Missing job title"}), 400
+    
+    # Mock AI improvement
+    improvements = []
+    if len(current_description.split()) < 30:
+        improvements.append("Add more specific responsibilities and expectations.")
+    if 'responsibilities' not in current_description.lower():
+        improvements.append("Include a 'Key Responsibilities' section.")
+    if 'qualifications' not in current_description.lower() and 'requirements' not in current_description.lower():
+        improvements.append("Add required qualifications and experience.")
+    if 'benefits' not in current_description.lower():
+        improvements.append("Mention benefits and perks to attract top talent.")
+    
+    improved = current_description
+    if not current_description:
+        improved = (
+            f"We are looking for a talented {title} to join our team. "
+            f"In this role, you will be responsible for designing, developing, and maintaining "
+            f"high-quality software solutions. You will collaborate with cross-functional teams "
+            f"to deliver features that delight our customers.\n\n"
+            f"Key Responsibilities:\n"
+            f"- Design and implement new features\n"
+            f"- Write clean, maintainable code\n"
+            f"- Participate in code reviews\n"
+            f"- Troubleshoot and debug issues\n\n"
+            f"Qualifications:\n"
+            f"- Proven experience as a {title}\n"
+            f"- Strong problem-solving skills\n"
+            f"- Excellent communication skills\n"
+            f"- Experience with modern development tools\n\n"
+            f"Benefits:\n"
+            f"- Competitive salary\n"
+            f"- Health insurance\n"
+            f"- Flexible work hours\n"
+            f"- Professional development opportunities"
+        )
+        improvements = ["Generated complete job description from scratch."]
+    
+    return jsonify({
+        "improved_description": improved,
+        "suggestions": improvements
+    }), 200
+
+# ============ AVATAR UPLOAD ============
+
+@api.route('/upload-avatar', methods=['POST'])
+def upload_avatar():
+    """Upload user avatar image"""
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+    
+    file = request.files['file']
+    user_id = request.form.get('user_id')
+    
+    if not file.filename or not user_id:
+        return jsonify({"error": "Missing file or user_id"}), 400
+    
+    filename = secure_filename(file.filename)
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ['.jpg', '.jpeg', '.png', '.gif', '.webp']:
+        return jsonify({"error": "Only JPG, PNG, GIF, and WebP files are supported"}), 400
+    
+    unique_name = f"avatar_{user_id}_{uuid_lib.uuid4().hex[:8]}{ext}"
+    filepath = os.path.join(UPLOAD_FOLDER, unique_name)
+    file.save(filepath)
+    
+    return jsonify({
+        "message": "Avatar uploaded successfully",
+        "avatar_url": f"/api/uploads/{unique_name}"
     }), 200

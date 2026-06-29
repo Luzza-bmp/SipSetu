@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,8 +11,10 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function RecruiterProfile() {
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [profile, setProfile] = useState({
     firstName: "",
     lastName: "",
@@ -20,7 +22,16 @@ export default function RecruiterProfile() {
     phone: "",
     location: "",
     company: "",
-    role: "", // This is the job title in the UI
+    role: "",
+  });
+  const [initialProfile, setInitialProfile] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    location: "",
+    company: "",
+    role: "",
   });
 
   useEffect(() => {
@@ -36,7 +47,7 @@ export default function RecruiterProfile() {
         const fullName = response.data.name || "";
         const [firstName, ...lastNameParts] = fullName.split(" ");
         
-        setProfile({
+        const profileData = {
           firstName: firstName || "",
           lastName: lastNameParts.join(" ") || "",
           email: response.data.email || "",
@@ -44,7 +55,9 @@ export default function RecruiterProfile() {
           location: response.data.location || "",
           company: response.data.company || "",
           role: response.data.job_title || "",
-        });
+        };
+        setProfile(profileData);
+        setInitialProfile(profileData);
       } catch (error) {
         console.error("Error fetching profile:", error);
         toast({
@@ -76,6 +89,7 @@ export default function RecruiterProfile() {
       });
       
       localStorage.setItem("user_name", `${profile.firstName} ${profile.lastName}`.trim());
+      setInitialProfile({ ...profile });
       
       toast({
         title: "Success",
@@ -90,6 +104,30 @@ export default function RecruiterProfile() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setProfile({ ...initialProfile });
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const userId = localStorage.getItem("user_id");
+    if (!userId) return;
+
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("user_id", userId);
+      await axios.post("http://127.0.0.1:5000/api/upload-avatar", formData);
+      toast({ title: "Success", description: "Avatar updated successfully." });
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to upload avatar.", variant: "destructive" });
+    } finally {
+      setUploadingAvatar(false);
     }
   };
 
@@ -119,9 +157,21 @@ export default function RecruiterProfile() {
                     {profile.firstName[0]}{profile.lastName[0]}
                   </AvatarFallback>
                 </Avatar>
-                <button className="absolute bottom-2 right-2 h-8 w-8 bg-[#1E3A5F] text-white rounded-full flex items-center justify-center shadow-lg hover:bg-[#1E3A5F]/90 transition-colors">
-                  <Camera className="h-4 w-4" />
+                <button
+                  type="button"
+                  className="absolute bottom-2 right-2 h-8 w-8 bg-[#1E3A5F] text-white rounded-full flex items-center justify-center shadow-lg hover:bg-[#1E3A5F]/90 transition-colors disabled:opacity-50"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                >
+                  {uploadingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
                 </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleAvatarUpload}
+                  accept=".jpg,.jpeg,.png,.gif,.webp"
+                  className="hidden"
+                />
               </div>
               <p className="text-sm font-medium text-slate-500">JPG, GIF or PNG. Max size of 2MB.</p>
             </div>
@@ -230,7 +280,7 @@ export default function RecruiterProfile() {
               </div>
 
               <div className="flex justify-end gap-4 pt-6 mt-6 border-t border-slate-100">
-                <Button variant="outline">Cancel</Button>
+                <Button variant="outline" onClick={handleCancel}>Cancel</Button>
                 <Button 
                   className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90"
                   onClick={handleSave}

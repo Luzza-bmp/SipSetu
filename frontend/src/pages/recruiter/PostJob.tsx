@@ -7,14 +7,21 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { X, Sparkles } from "lucide-react";
+import { X, Sparkles, Loader2, Save } from "lucide-react";
 
 export default function RecruiterPostJob() {
+  const userId = localStorage.getItem("user_id");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [skills, setSkills] = useState<string[]>(["React", "TypeScript", "Git"]);
   const [skillInput, setSkillInput] = useState("");
+  const [experienceLevel, setExperienceLevel] = useState("");
+  const [jobType, setJobType] = useState("");
+  const [location, setLocation] = useState("");
+  const [salaryMin, setSalaryMin] = useState("");
+  const [salaryMax, setSalaryMax] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isImproving, setIsImproving] = useState(false);
 
   const addSkill = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && skillInput.trim()) {
@@ -30,25 +37,54 @@ export default function RecruiterPostJob() {
     setSkills(skills.filter(s => s !== skillToRemove));
   };
 
-  const handlePostJob = async (e: React.FormEvent) => {
+  const handleImproveWithAI = async () => {
+    if (!title) {
+      alert("Please enter a job title first.");
+      return;
+    }
+    setIsImproving(true);
+    try {
+      const res = await axios.post("http://127.0.0.1:5000/api/jobs/improve-description", {
+        title,
+        description,
+      });
+      setDescription(res.data.improved_description);
+    } catch (err) {
+      console.error("AI improvement failed", err);
+      alert("Failed to improve description. Please try again.");
+    } finally {
+      setIsImproving(false);
+    }
+  };
+
+  const handlePostJob = async (e: React.FormEvent, status: string = 'active') => {
     e.preventDefault();
     if (!title) {
-        alert("Please enter a job title");
-        return;
+      alert("Please enter a job title");
+      return;
+    }
+    if (!userId) {
+      alert("Please log in first.");
+      return;
     }
     setIsSubmitting(true);
     try {
-      // In a real app, recruiter_id would come from auth context
-      const recruiter_id = localStorage.getItem("user_id") || "00000000-0000-0000-0000-000000000000"; 
-      await axios.post("http://localhost:5000/api/jobs", {
-        recruiter_id,
+      const res = await axios.post("http://localhost:5000/api/jobs", {
+        recruiter_id: userId,
         title,
-        skills
+        description,
+        skills,
+        status,
       });
-      alert("Job posted successfully!");
+      alert(status === 'draft' ? "Job saved as draft!" : "Job posted successfully!");
       setTitle("");
       setDescription("");
       setSkills([]);
+      setExperienceLevel("");
+      setJobType("");
+      setLocation("");
+      setSalaryMin("");
+      setSalaryMax("");
     } catch (err) {
       console.error(err);
       alert("Failed to post job");
@@ -70,7 +106,7 @@ export default function RecruiterPostJob() {
           <CardDescription>Be as specific as possible to get better AI matches.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="space-y-8" onSubmit={handlePostJob}>
+          <form className="space-y-8" onSubmit={(e) => handlePostJob(e, 'active')}>
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Job Title</Label>
@@ -80,8 +116,9 @@ export default function RecruiterPostJob() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <Label htmlFor="description">Job Description</Label>
-                  <Button type="button" variant="ghost" size="sm" className="h-8 text-indigo-600 gap-1.5 px-2">
-                    <Sparkles className="h-3.5 w-3.5" /> Improve with AI
+                  <Button type="button" variant="ghost" size="sm" className="h-8 text-indigo-600 gap-1.5 px-2" onClick={handleImproveWithAI} disabled={isImproving}>
+                    {isImproving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                    {isImproving ? "Improving..." : "Improve with AI"}
                   </Button>
                 </div>
                 <Textarea 
@@ -121,7 +158,7 @@ export default function RecruiterPostJob() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
               <div className="space-y-2">
                 <Label>Experience Level</Label>
-                <Select>
+                <Select value={experienceLevel} onValueChange={setExperienceLevel}>
                   <SelectTrigger className="h-11 bg-white">
                     <SelectValue placeholder="Select experience" />
                   </SelectTrigger>
@@ -136,7 +173,7 @@ export default function RecruiterPostJob() {
 
               <div className="space-y-2">
                 <Label>Job Type</Label>
-                <Select>
+                <Select value={jobType} onValueChange={setJobType}>
                   <SelectTrigger className="h-11 bg-white">
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
@@ -150,7 +187,7 @@ export default function RecruiterPostJob() {
 
               <div className="space-y-2">
                 <Label>Location</Label>
-                <Input placeholder="e.g. Bangalore, India" className="h-11" />
+                <Input value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Bangalore, India" className="h-11" />
               </div>
 
               <div className="space-y-2">
@@ -158,23 +195,27 @@ export default function RecruiterPostJob() {
                 <div className="flex items-center gap-2">
                   <div className="relative flex-1">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-medium">₹</span>
-                    <Input type="number" placeholder="Min" className="h-11 pl-7" />
+                    <Input type="number" value={salaryMin} onChange={e => setSalaryMin(e.target.value)} placeholder="Min" className="h-11 pl-7" />
                   </div>
                   <span className="text-slate-400">-</span>
                   <div className="relative flex-1">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-medium">₹</span>
-                    <Input type="number" placeholder="Max" className="h-11 pl-7" />
+                    <Input type="number" value={salaryMax} onChange={e => setSalaryMax(e.target.value)} placeholder="Max" className="h-11 pl-7" />
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 pt-6">
-              <Button type="button" variant="outline" className="h-12 sm:flex-1 text-slate-600 bg-white hover:bg-slate-50">
-                Save as Draft
+              <Button type="button" variant="outline" className="h-12 sm:flex-1 text-slate-600 bg-white hover:bg-slate-50 gap-2" onClick={(e) => handlePostJob(e as any, 'draft')} disabled={isSubmitting}>
+                <Save className="h-4 w-4" /> Save as Draft
               </Button>
               <Button type="submit" disabled={isSubmitting} className="h-12 sm:flex-[2] bg-[#F97316] hover:bg-[#F97316]/90 text-white text-base shadow-lg shadow-orange-500/20">
-                {isSubmitting ? "Posting..." : "Post Job Opening"}
+                {isSubmitting ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Posting...</>
+                ) : (
+                  "Post Job Opening"
+                )}
               </Button>
             </div>
           </form>

@@ -61,6 +61,8 @@ class Job(db.Model):
     job_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     recruiter_id = db.Column(UUID(as_uuid=True), db.ForeignKey('recruiters.user_id', ondelete='CASCADE'), nullable=False)
     title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(20), nullable=False, default='active')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     skills = db.relationship('Skill', secondary=job_skills, backref=db.backref('jobs', lazy='dynamic'))
@@ -84,3 +86,13 @@ class Ranking(db.Model):
     resume_id = db.Column(UUID(as_uuid=True), db.ForeignKey('resumes.resume_id', ondelete='CASCADE'), nullable=False)
     matching_score = db.Column(db.Float)
     candidate_rank = db.Column(db.Integer)
+
+class Bookmark(db.Model):
+    __tablename__ = 'bookmarks'
+    bookmark_id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    applicant_id = db.Column(UUID(as_uuid=True), db.ForeignKey('applicants.user_id', ondelete='CASCADE'), nullable=False)
+    job_id = db.Column(UUID(as_uuid=True), db.ForeignKey('jobs.job_id', ondelete='CASCADE'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    applicant = db.relationship('Applicant', backref=db.backref('bookmarks', lazy=True, cascade='all, delete-orphan'))
+    job = db.relationship('Job', backref=db.backref('bookmarks', lazy=True, cascade='all, delete-orphan'))
