@@ -17,8 +17,6 @@ from app.services.experience_extractor import (
     extract_experience_years
 )
 
-from app.services.link_extractor import extract_links
-
 
 def parse_resume(filepath):
 
@@ -45,7 +43,6 @@ def parse_resume(filepath):
 
         "experience": extract_experience_years(text),
 
-        "links": extract_links(text)
     }
 
     return parsed_data
